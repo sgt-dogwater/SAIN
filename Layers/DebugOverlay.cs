@@ -135,12 +135,12 @@ namespace SAIN.Layers
                 }
 
                 if (debug.OverLay_AimInfo) {
-                    if (bot.BotOwner.AimingData != null) {
+                    if (bot.BotOwner.AimingManager.CurrentAiming != null) {
                         stringBuilder.AppendLine($"AimData: Status [{bot.Aim.AimStatus}] " +
                             $"Last Aim Time: [{bot.Aim.LastAimTime}] " +
-                            $"AimingTime [{timeAiming.GetValue(bot.BotOwner.AimingData)}] " +
-                            $"TimeToFnsh: [{TimeToAim.GetValue(bot.BotOwner.AimingData)}]");
-                        stringBuilder.AppendLine($"AimOffsetMagnitude [{((bot.BotOwner.AimingData.RealTargetPoint - bot.BotOwner.AimingData.EndTargetPoint).magnitude).Round100()}] " +
+                            $"AimingTime [{timeAiming.GetValue(bot.BotOwner.AimingManager.CurrentAiming)}] " +
+                            $"TimeToFnsh: [{TimeToAim.GetValue(bot.BotOwner.AimingManager.CurrentAiming)}]");
+                        stringBuilder.AppendLine($"AimOffsetMagnitude [{((bot.BotOwner.AimingManager.CurrentAiming.RealTargetPoint - bot.BotOwner.AimingManager.CurrentAiming.EndTargetPoint).magnitude).Round100()}] " +
                             $"Friendly Fire Status [{bot.FriendlyFire.FriendlyFireStatus}] " +
                             $"No Bush ESP Status: [{bot.NoBushESP.NoBushESPActive}]");
                         stringBuilder.AppendLine();
@@ -263,7 +263,7 @@ namespace SAIN.Layers
 
             stringBuilder.AppendLine($"Aim/Scatter Multi [{enemy.Aim.AimAndScatterMultiplier}]");
             stringBuilder.AppendLabeledValue("Time To Spot", $"{enemy.Vision.LastGainSightResult.Round100()}", Color.white, Color.yellow, true);
-            float highestPercent = getPercentSpotted(enemy, out var partType);
+            float highestPercent = getVisibilityLevel(enemy, out var partType);
             if (highestPercent > 0)
                 stringBuilder.AppendLabeledValue("Percent Spotted", $"{partType} : {highestPercent}", Color.white, Color.yellow, true);
 
@@ -303,12 +303,12 @@ namespace SAIN.Layers
             }
         }
 
-        private static float getPercentSpotted(Enemy enemy, out BodyPartType partType)
+        private static float getVisibilityLevel(Enemy enemy, out BodyPartType partType)
         {
-            float highestPercent = enemy.EnemyInfo.BodyData().Value?.PercentSpotted(out _) ?? 0f;
+            float highestPercent = enemy.EnemyInfo.BodyData().Value?._visibilityLevel ?? 0f;
             partType = BodyPartType.body;
             foreach (var part in enemy.EnemyInfo.AllActiveParts) {
-                float percent = part.Value.PercentSpotted(out _);
+                float percent = part.Value._visibilityLevel;
                 if (percent > highestPercent) {
                     highestPercent = percent;
                     partType = part.Key.BodyPartType;

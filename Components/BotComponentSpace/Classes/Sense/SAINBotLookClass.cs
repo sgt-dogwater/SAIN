@@ -6,9 +6,9 @@ using System.Reflection;
 using UnityEngine;
 
 // Found in Botowner.Looksensor
-using EnemyTotalCheck = GClass568;
-using EnemyVisionCheck = GClass548;
-using LookAllData = GClass573;
+using EnemyTotalCheck = GClass583;
+using EnemyVisionCheck = GClass564;
+using LookAllData = GClass589;
 
 namespace SAIN.SAINComponent.Classes
 {
@@ -20,6 +20,8 @@ namespace SAIN.SAINComponent.Classes
         private const float VISION_FREQ_UNKNOWN_ENEMY = 0.1f;
         private const float VISION_FREQ_KNOWN_ENEMY = 0.05f;
 
+        private float _lastUpdateTime = 0f;
+
         public SAINBotLookClass(BotComponent component) : base(component)
         {
             LookData = new LookAllData();
@@ -29,6 +31,7 @@ namespace SAIN.SAINComponent.Classes
         {
             base.SubscribeToPreset(null);
             _enemies = Bot.EnemyController.Enemies;
+            _lastUpdateTime = 0;
         }
 
         public void Dispose()
@@ -45,37 +48,44 @@ namespace SAIN.SAINComponent.Classes
                 return 0;
             }
 
-            int numUpdated = UpdateLookForEnemies(LookData);
+            if (_lastUpdateTime == 0) {
+              _lastUpdateTime = Time.time;
+            }
+
+            float deltaTime = Time.time - _lastUpdateTime; // Is this the delta time that UpdateVisibility is looking for?
+            _lastUpdateTime += deltaTime;
+
+            int numUpdated = UpdateLookForEnemies(LookData, deltaTime);
             UpdateLookData(LookData);
             return numUpdated;
         }
 
         public void UpdateLookData(LookAllData lookData)
         {
-            for (int i = 0; i < lookData.reportsData.Count; i++) {
-                EnemyVisionCheck enemyVision = lookData.reportsData[i];
-                BotOwner.BotsGroup.ReportAboutEnemy(enemyVision.enemy, enemyVision.VisibleOnlyBuSence);
+            for (int i = 0; i < lookData.ReportsData.Count; i++) {
+                EnemyVisionCheck enemyVision = lookData.ReportsData[i];
+                BotOwner.BotsGroup.ReportAboutEnemy(enemyVision.Enemy, enemyVision.VisibleOnlyBySence);
             }
 
-            if (lookData.reportsData.Count > 0)
+            if (lookData.ReportsData.Count > 0)
                 BotOwner.Memory.SetLastTimeSeeEnemy();
 
-            if (lookData.shallRecalcGoal)
+            if (lookData.ShallRecalcGoal)
                 BotOwner.CalcGoal();
 
             lookData.Reset();
         }
 
-        private int UpdateLookForEnemies(LookAllData lookAll)
+        private int UpdateLookForEnemies(LookAllData lookAll, float deltaTime)
         {
             int updated = 0;
             _cachedList.Clear();
             _cachedList.AddRange(_enemies.Values);
             foreach (Enemy enemy in _cachedList) {
-                if (!shallCheckEnemy(enemy))
+                if (!shallCheckEnemy(enemy, deltaTime))
                     continue;
 
-                if (checkEnemy(enemy, lookAll)) {
+                if (checkEnemy(enemy, lookAll, deltaTime)) {
                     updated++;
                 }
             }
@@ -85,24 +95,24 @@ namespace SAIN.SAINComponent.Classes
 
         private readonly List<Enemy> _cachedList = new List<Enemy>();
 
-        private bool shallCheckEnemy(Enemy enemy)
+        private bool shallCheckEnemy(Enemy enemy, float deltaTime)
         {
             if (enemy?.CheckValid() != true)
                 return false;
 
             if (!enemy.InLineOfSight ||
                 !enemy.Vision.Angles.CanBeSeen) {
-                setNotVis(enemy);
+                setNotVis(enemy, deltaTime);
                 return false;
             }
             return true;
         }
 
-        private void setNotVis(Enemy enemy)
+        private void setNotVis(Enemy enemy, float deltaTime)
         {
             foreach (var part in enemy.EnemyInfo.AllActiveParts.Values) {
-                if (part.IsVisible || part.VisibleBySense) {
-                    part.UpdateVision(1000f, false, false, false, BotOwner);
+                if (part.IsVisible) {
+                    part.UpdateVisibility(BotOwner, false, false, false, deltaTime);
                 }
             }
             if (enemy.EnemyInfo.IsVisible) {
@@ -110,14 +120,14 @@ namespace SAIN.SAINComponent.Classes
             }
         }
 
-        private bool checkEnemy(Enemy enemy, LookAllData lookAll)
+        private bool checkEnemy(Enemy enemy, LookAllData lookAll, float deltaTime)
         {
             float delay = getDelay(enemy);
             var look = enemy.Vision.VisionChecker;
             float timeSince = Time.time - look.LastCheckLookTime;
             if (timeSince >= delay) {
                 look.LastCheckLookTime = Time.time;
-                enemy.EnemyInfo.CheckLookEnemy(lookAll);
+                enemy.EnemyInfo.CheckLookEnemy(lookAll, deltaTime);
                 return true;
             }
             return false;

@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+using DrakiaXYZ.BigBrain.Brains;
+
 namespace SAIN.Layers.Combat.Solo.Cover
 {
     internal class ShiftCoverAction : CombatAction, ISAINAction
@@ -19,7 +21,7 @@ namespace SAIN.Layers.Combat.Solo.Cover
             ToggleAction(value);
         }
 
-        public override void Update()
+        public override void Update(CustomLayer.ActionData actionData)
         {
             Bot.Steering.SteerByPriority();
             Shoot.CheckAimAndFire();
